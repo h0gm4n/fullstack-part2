@@ -1,17 +1,29 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import axios from 'axios'
+import noteService from './services/persons'
+
 
 const App = () => {
 
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456' },
-    { name: 'Ada Lovelace', number: '39-44-5323523' },
-    { name: 'Dan Abramov', number: '12-43-234345' },
-    { name: 'Mary Poppendieck', number: '39-23-6423122' }
-  ])
+  const promise = axios.get('http://localhost:3001/persons')
+  promise.then(response => {
+    console.log(response.data)
+  })
+
+  const [persons, setPersons] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [showAll, setShowAll] = useState(true)
   const [filterWord, setNewFilter] = useState('')
+  const [approvalMessage, setApprovalMessage] = useState(null)
+
+  useEffect(() => {
+    noteService
+      .getAll()
+      .then(response => {
+        setPersons(response.data)
+      })
+    }, [])
 
   const addName = (event) => {
     event.preventDefault()
@@ -31,6 +43,32 @@ const App = () => {
       console.log('button clicked', event.target)
     }
 
+    setApprovalMessage(
+      `${newName} added`
+    )
+    setTimeout(() => {
+      setApprovalMessage(null)
+    }, 5000)
+
+    noteService
+      .create(nameObject)
+      .then(response => {
+        setPersons(persons.concat(response.data))      
+        setNewName('')
+      })
+
+  }
+
+  const Notification = ({ message }) => {
+    if (message === null) {
+      return null
+    }
+  
+    return (
+      <div className="approval">
+        {message}
+      </div>
+    )
   }
 
   const personsToShow = showAll
@@ -52,9 +90,23 @@ const App = () => {
     setNewFilter(event.target.value)
   } 
 
+  const handleClick = (id, personname) => {
+    if (window.confirm(`Delete ${personname}?`)) {
+      noteService
+        .update(id)
+      setApprovalMessage(
+        `${personname} deleted`
+      )
+      setTimeout(() => {
+        setApprovalMessage(null)
+      }, 5000)
+    }
+  }
+
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={approvalMessage} />
       <form>
         filter shown with <input value={filterWord} onChange={handleFilterChange}/>
       </form>
@@ -73,7 +125,9 @@ const App = () => {
         </button>
       </div>      
       <div>
-        {personsToShow.map(person => <p><div>{[person.name + " " + person.number]}</div></p>)}
+        {personsToShow.map(person => <p><div>{[person.name + " " + person.number]} 
+        <button onClick={() => handleClick(person.id, person.name)}> delete
+        </button></div></p>)}
       </div>
     </div>
   )
